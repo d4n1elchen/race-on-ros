@@ -5,7 +5,6 @@ from sensor_msgs.msg import Image, CompressedImage
 
 import picamera
 import signal
-import cv2
 import numpy as np
 
 stop_process = False
@@ -22,16 +21,9 @@ class Stream():
     
     def __init__(self):
         self.topic_name_camera_image = rospy.get_param("topic_name_camera_image", "camera/image")
-        self.topic_name_camera_image_compressed = rospy.get_param("topic_name_camera_image_compressed", "camera/image/compressed")
-        
-        # Tooglers
-        self.publish_raw = rospy.get_param("~publish_raw", False)
-        if self.publish_raw:
-            rospy.loginfo("Publishing raw image enabled.")
     
         # Set up ros publisher to publish on img topic, using Image message
         self.pub_img = rospy.Publisher(self.topic_name_camera_image, Image, queue_size=1)
-        self.pub_img_compressed = rospy.Publisher(self.topic_name_camera_image_compressed, CompressedImage, queue_size=1)
 
     # Called when new image is available
     def write(self, data):
