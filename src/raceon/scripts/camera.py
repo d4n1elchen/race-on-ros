@@ -36,25 +36,17 @@ class Stream():
     # Called when new image is available
     def write(self, data):
         np_arr = np.frombuffer(data, dtype=np.uint8)
-        img = np_arr.reshape((RES[1], RES[0], 3))
-        
-        # Publish compressed image
-        msg = CompressedImage()
-        msg.header.stamp = rospy.Time.now()
-        msg.format = "jpeg"
-        msg.data = np.array(cv2.imencode('.jpg', img)[1]).tobytes()
-        self.pub_img_compressed.publish(msg)
         
         # Publish raw image
-        if self.publish_raw:
-            msg = Image()
-            msg.header.stamp = rospy.Time.now()
-            msg.width = RES[0]
-            msg.height = RES[1]
-            msg.encoding = "bgr8"
-            msg.step = len(data) // RES[1]
-            msg.data = data
-            self.pub_img.publish(msg)
+        data_y = data[:RES[0]*RES[1]]
+        msg = Image()
+        msg.header.stamp = rospy.Time.now()
+        msg.width = RES[0]
+        msg.height = RES[1]
+        msg.encoding = "8UC1"
+        msg.step = len(data_y) // RES[1]
+        msg.data = data_y
+        self.pub_img.publish(msg)
         
 if __name__ == "__main__":
 
@@ -74,7 +66,7 @@ if __name__ == "__main__":
         camera.framerate = fps
         
         try:
-            camera.start_recording(Stream(), format='bgr')
+            camera.start_recording(Stream(), format='yuv')
             while not stop_process:
                 camera.wait_recording(1)
         except:
