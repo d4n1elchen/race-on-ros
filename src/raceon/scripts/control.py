@@ -16,9 +16,10 @@ SERVO_MAX = 900
 # Decrease speed when turning
 def sigmoid(x):
     return 1/(1 + np.exp(-x))
+
 def decreaseCurve(x):
     #return np.maximum(0.0, np.tanh((abs(x)-0.05)*16))
-    return sigmoid((abs(x)-0.07)*203)
+    return sigmoid((abs(x)+0.1)*500)
 
 class Controller():
     
@@ -55,7 +56,7 @@ class Controller():
         rospy.loginfo("Current error: pos_err = " + str(pos_err))
         
         servo_pos = self.control_servo(pos_err)
-        motor_speed = self.decreaseSpeedPosErr(pos_err)
+        motor_speed = self.decreaseSpeedState()
         
         rospy.loginfo("Control command: servo_pos = " + str(servo_pos) + ", motor_speed = " + str(motor_speed))
         
@@ -76,12 +77,20 @@ class Controller():
             return self.motor_speed
     
     def decreaseSpeedServo(self, servo_pos):
-        if self.state == 1: # Two line
+        if self.state == 1 or self.state == 2: # Two line
             return self.motor_speed
-        elif self.state > 1: # One line
+        elif self.state > 2: # One line
             return self.motor_speed - self.decrease_max * decreaseCurve(servo_pos / SERVO_MAX)
         else: # No line
             return self.motor_speed
+        
+    def decreaseSpeedState(self):
+        if self.state == 1: # Both two lines
+            return self.motor_speed
+        elif self.state == 2: # Break
+            return 0
+        else: # One of the scan line contains one or zero line
+            return self.steering_speed
         
     # TODO: Implement PID
     def _pid(self, error):

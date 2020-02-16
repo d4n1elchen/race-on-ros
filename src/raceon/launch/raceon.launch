@@ -2,8 +2,8 @@
     <arg name="speed" default="0"/>
     
     <arg name="kp" default="10" />
-    <arg name="ki" default="0" />
-    <arg name="kd" default="0.1" />
+    <arg name="ki" default="0.5" />
+    <arg name="kd" default="1.5" />
     
     <group ns="raceon">
         <param name="topic_name_camera_image" value="camera/image" />
@@ -21,15 +21,18 @@
         </node>
 
         <node pkg="raceon" name="pos_estimation" type="pos_estimation.py" output="log">
-            <param name="~scan_line" value="190" />
-            <param name="~peak_threshold" value="170" />
+            <param name="~scan_line_d" value="170" />
+            <param name="~scan_line_u" value="40" />
+            <param name="~peak_threshold_d" value="170" />
+            <param name="~peak_threshold_u" value="170" />
             <param name="~track_width" value="500" />
             <param name="~camera_center" value="320" />
+            <param name="~breaker" value="0" />
         </node>
 
         <node pkg="raceon" name="control" type="control.py" output="log">
             <param name="~motor_speed" value="$(arg speed)" />
-            <param name="~steering_speed" value="160" />
+            <param name="~steering_speed" value="0" />
             <param name="~target" value="0" />
             <param name="~kp" value="$(arg kp)" />
             <param name="~ki" value="$(arg ki)" />
