@@ -121,25 +121,25 @@ class PosEstimator():
                 self.breaker = 0
                 state = 1
             else:
-                if self.breaker < 6:
+                if self.breaker < 5:
                     state = 2
-                    self.breaker = self.breaker+1
+                    self.breaker = self.breaker + 1
                 else:
                     state = 3
                     
             
         elif line_left_d and not line_right_d:
-            if self.breaker < 6:
+            if self.breaker < 5:
                     state = 2
-                    self.breaker = self.breaker+1
+                    self.breaker = self.breaker + 1
             else:
                 line_pos    = line_left_d + int(self.track_width / 2)
                 state = 4
             
         elif not line_left_d and line_right_d:
-            if self.breaker < 6:
+            if self.breaker < 5:
                     state = 2
-                    self.breaker = self.breaker+1
+                    self.breaker = self.breaker + 1
             else:
                 line_pos    = line_right_d - int(self.track_width / 2)
                 state = 5
