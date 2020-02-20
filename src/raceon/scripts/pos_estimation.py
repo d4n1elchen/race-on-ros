@@ -28,8 +28,6 @@ class PosEstimator():
         self.track_width = rospy.get_param("~track_width", 600)
         self.camera_center = rospy.get_param("~camera_center", 320)
         
-        self.breaker = rospy.get_param("~breaker", 0);
-        
         # line2
         self.scan_line_u = rospy.get_param("~scan_line_u", 150)
         self.peak_thres_u = rospy.get_param("~peak_threshold_u", 170)
@@ -84,29 +82,31 @@ class PosEstimator():
         
         rospy.loginfo(peaks_d)
 
-        state       = 0
-        line_pos    = self.last_line_pos
+        line_pos      = self.last_line_pos
+        
+        state_u       = 1 # No line
+        line_left_u   = None
+        line_right_u  = None
+        peaks_left_u  = peaks_u[peaks_u < self.last_line_pos]
+        peaks_right_u = peaks_u[peaks_u > self.last_line_pos]
+
+        state_d       = 1 # No line
         line_left_d   = None
         line_right_d  = None
         peaks_left_d  = peaks_d[peaks_d < self.last_line_pos]
         peaks_right_d = peaks_d[peaks_d > self.last_line_pos]
         
-        line_left_u   = None
-        line_right_u  = None
-        peaks_left_u  = peaks_u[peaks_u < self.last_line_pos]
-        peaks_right_u = peaks_u[peaks_u > self.last_line_pos]
-        
         # Peaks on the left
-        if peaks_left_d.size:
-            line_left_d = peaks_left_d.max()
         if peaks_left_u.size:
             line_left_u = peaks_left_u.max()
+        if peaks_left_d.size:
+            line_left_d = peaks_left_d.max()
 
         # Peaks on the right
-        if peaks_right_d.size:
-            line_right_d = peaks_right_d.min()
         if peaks_right_u.size:
             line_right_u = peaks_right_u.min()
+        if peaks_right_d.size:
+            line_right_d = peaks_right_d.min()
         
         # Log track position
         track_msg = TrackPosition()
@@ -114,40 +114,38 @@ class PosEstimator():
         track_msg.right = 0 if line_right_d == None else int(line_right_d)
         self.pub_pos_track.publish(track_msg)
 
+        # Check upper scan line
+        if line_left_u and line_right_u:
+            state_u = 0
+
+        elif line_left_u and not line_right_u:
+            state_u = 2
+
+        elif not line_left_u and line_right_u:
+            state_u = 3
+
+        else:
+            state_u = 1
+
         # Evaluate the line position
         if line_left_d and line_right_d:
             line_pos    = (line_left_d + line_right_d ) // 2
-            if line_left_u and line_right_u:
-                self.breaker = 0
-                state = 1
-            else:
-                if self.breaker < 5:
-                    state = 2
-                    self.breaker = self.breaker + 1
-                else:
-                    state = 3
+            state_d = 0
                     
-            
         elif line_left_d and not line_right_d:
-            if self.breaker < 5:
-                    state = 2
-                    self.breaker = self.breaker + 1
-            else:
-                line_pos    = line_left_d + int(self.track_width / 2)
-                state = 4
+            line_pos    = line_left_d + int(self.track_width / 2)
+            state_d = 2
             
         elif not line_left_d and line_right_d:
-            if self.breaker < 5:
-                    state = 2
-                    self.breaker = self.breaker + 1
-            else:
-                line_pos    = line_right_d - int(self.track_width / 2)
-                state = 5
+            line_pos    = line_right_d - int(self.track_width / 2)
+            state_d = 3
             
         else:
-            rospy.loginfo("no line")
+            state_d = 1
+            rospy.loginfo("No track line")
         
         self.last_line_pos = line_pos
+        state = (state_u << 4) + state_d
         return line_pos, state
 
 if __name__ == "__main__":

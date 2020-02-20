@@ -43,7 +43,9 @@ class Controller():
         
         # Speed command
         self.manual_mode = False
-        self.state = 0
+        self.state_u = 0
+        self.state_d = 0
+        self.break_cnt = 0
         self.decrease_max = self.motor_speed - self.steering_speed
     
     def start(self):
@@ -70,7 +72,7 @@ class Controller():
             rospy.loginfo("Current error: pos_err = " + str(pos_err))
             
             servo_pos = self.control_servo(pos_err)
-            motor_speed = self.decreaseSpeedState()
+            motor_speed = self.decrease_speed_state_two_scan()
             
             rospy.loginfo("Control command: servo_pos = " + str(servo_pos) + ", motor_speed = " + str(motor_speed))
             
@@ -80,33 +82,44 @@ class Controller():
             self.pub_control.publish(control_msg)
     
     def pos_state_callback(self, pos_state_msg):
-        self.state = pos_state_msg.data
+        self.state_u = pos_state_msg.data >> 4
+        self.state_d = pos_state_msg.data & 0b1111
     
-    def decreaseSpeedPosErr(self, pos_err):
-        if self.state == 1: # Two line
+    def decrease_speed_pos_err(self, pos_err):
+        if self.state == 0: # Two line
             return self.motor_speed
-        elif self.state > 1: # One line
+        elif self.state > 0: # One line
             return self.motor_speed - self.decrease_max * decreaseCurve(pos_err / (self.track_width/2))
-        else: # No line
-            return self.motor_speed
     
-    def decreaseSpeedServo(self, servo_pos):
-        if self.state == 1 or self.state == 2: # Two line
+    def decrease_speed_servo(self, servo_pos):
+        if self.state == 0: # Two line
             return self.motor_speed
-        elif self.state > 2: # One line
+        elif self.state > 0: # One line
             return self.motor_speed - self.decrease_max * decreaseCurve(servo_pos / SERVO_MAX)
-        else: # No line
-            return self.motor_speed
         
-    def decreaseSpeedState(self):
-        if self.state == 1: # Both two lines
+    def decrease_speed_state(self):
+        if self.state_d == 0: # Both two lines
             return self.motor_speed
-        elif self.state == 2: # Break
-            return 0
         else: # One of the scan line contains one or zero line
             return self.steering_speed
+
+    def decrease_speed_state_two_scan(self):
+        if self.break_cnt > 4: # disable break after 4 frame passed
+            if self.state_d == 0:
+                self.break_cnt = 0 # enable break when back to straight
+                return self.motor_speed
+            else:
+                return self.steering_speed
+        elif self.break_cnt > 0: # during break
+            self.break_cnt += 1
+            return 0
+        elif self.break_cnt == 0: # wait for break
+            if self.state_d == 0 and self.state_u == 0: # if everything good full speed
+                return self.motor_speed
+            else: # upper or lower scan line lost one of the lines, break anyway!
+                self.break_cnt = 1
+                return 0
         
-    # TODO: Implement PID
     def _pid(self, error):
         return error * self.kp
 
