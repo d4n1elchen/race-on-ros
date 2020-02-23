@@ -4,10 +4,9 @@
 ## to the "imu_data" topic
 
 import rospy
-from std_msgs.msg import Int8
 from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import Pose
-from raceon.msg import TrackPosition
+from raceon.msg import TrackPosition, EstState
 
 # Dependencies for estimation
 import numpy as np
@@ -32,20 +31,25 @@ class PosEstimator():
         self.scan_line_u = rospy.get_param("~scan_line_u", 150)
         self.peak_thres_u = rospy.get_param("~peak_threshold_u", 170)
         
-        
+        # Filter parameters
         self.butter_b, self.butter_a = butter(3, 0.1)
         
+        # Tracking
         self.last_line_pos = self.camera_center
+        self.avg_track_width = self.track_width
+        self.frame_cnt = 0
     
     def start(self):
         self.sub_camera = rospy.Subscriber(self.topic_name_camera_image, Image, self.image_callback)
             
         self.pub_pos_err = rospy.Publisher(self.topic_name_pos_err, Pose, queue_size=10)
         self.pub_pos_track = rospy.Publisher(self.topic_name_pos_track, TrackPosition, queue_size=10)
-        self.pub_pos_state = rospy.Publisher(self.topic_name_pos_state, Int8, queue_size=10)
+        self.pub_pos_state = rospy.Publisher(self.topic_name_pos_state, EstState, queue_size=10)
         rospy.spin()
 
     def image_callback(self, img_msg):
+        self.frame_cnt += 1
+
         width = img_msg.width
         height = img_msg.height
         
@@ -55,17 +59,18 @@ class PosEstimator():
     
     def process_image(self, img):
         rospy.loginfo("Image with shape {:s} received. (max, min)=({:d}, {:d})".format(str(img.shape), img.min(), img.max()))
-        line_pos, state = self.pos_estimate(img)
+        line_pos, state_u, state_d = self.pos_estimate(img)
         pos_err = self.camera_center - line_pos
         
-        rospy.loginfo("Estimated line_pos = {:d}, state = {:d}".format(line_pos, state))
+        rospy.loginfo("Estimated line_pos = {:d}, state_u = {:d}, state_d = {:d}".format(line_pos, state_u, state_d))
         
         pos_msg = Pose()
         pos_msg.position.x = pos_err
         self.pub_pos_err.publish(pos_msg)
         
-        state_msg = Int8()
-        state_msg.data = state
+        state_msg = EstState()
+        state_msg.upper = state_u
+        state_msg.down = state_d
         self.pub_pos_state.publish(state_msg)
         
     def pos_estimate(self, I):
@@ -130,6 +135,9 @@ class PosEstimator():
         # Evaluate the line position
         if line_left_d and line_right_d:
             line_pos    = (line_left_d + line_right_d ) // 2
+            if (line_right_d - line_left_d) > self.avg_track_width / 2:
+                self.avg_track_width = (self.avg_track_width * self.frame_cnt + (line_right_d - line_left_d)) / self.frame_cnt
+                rospy.loginfo("Average track width: {:f}".format(self.avg_track_width))
             state_d = 0
                     
         elif line_left_d and not line_right_d:
@@ -145,8 +153,7 @@ class PosEstimator():
             rospy.loginfo("No track line")
         
         self.last_line_pos = line_pos
-        state = (state_u << 4) + state_d
-        return line_pos, state
+        return line_pos, state_u, state_d
 
 if __name__ == "__main__":
     rospy.init_node("pos_estimation")
