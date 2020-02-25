@@ -4,9 +4,11 @@
     
     <arg name="kp" default="5" />
     <arg name="ki" default="0" />
-    <arg name="kd" default="0.1" />
+    <arg name="kd" default="0" />
 
-    <arg name="turn_kp" default="8" />
+    <arg name="turn_kp" default="15" />
+    <arg name="turn_ki" default="0" />
+    <arg name="turn_kd" default="0.2" />
     
     <group ns="raceon">
         <param name="topic_name_camera_image" value="camera/image" />
@@ -42,6 +44,8 @@
             <param name="~ki" value="$(arg ki)" />
             <param name="~kd" value="$(arg kd)" />
             <param name="~turn_kp" value="$(arg turn_kp)" />
+            <param name="~turn_ki" value="$(arg turn_ki)" />
+            <param name="~turn_kd" value="$(arg turn_kd)" />
         </node>
 
         <node pkg="raceon" name="actuation" type="actuation.py" output="log" />

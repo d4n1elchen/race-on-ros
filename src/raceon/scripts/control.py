@@ -109,7 +109,7 @@ class Controller():
             return self.steering_speed
 
     def decrease_speed_state_two_scan(self):
-        if self.break_cnt > 4: # disable break after 4 frame passed
+        if self.break_cnt > 3: # disable break after 3 frame passed
             if self.state_d == 0:
                 self.break_cnt = 0 # enable break when back to straight
                 return self.motor_speed
@@ -135,7 +135,7 @@ class Controller():
 
     def control_servo(self, error):
         if(self.state_d != 1): # If there's one or more line, update the servo position (state 1 for no line)
-            if(np.abs(error) > 100): # If it is turning, use turn kp
+            if(np.abs(error) > 150): # If it is turning, use turn kp
                 self.pid.setKp(self.turn_kp)
             else:
                 self.pid.setKp(self.kp)

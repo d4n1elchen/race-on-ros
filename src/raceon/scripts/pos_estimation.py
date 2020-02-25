@@ -36,7 +36,7 @@ class PosEstimator():
         
         # Tracking
         self.last_line_pos = self.camera_center
-        self.avg_track_width = self.track_width
+        self.avg_track_width = 0
         self.frame_cnt = 0
     
     def start(self):
@@ -75,15 +75,16 @@ class PosEstimator():
         
     def pos_estimate(self, I):
         # Select a horizontal line in the middle of the image
-        L = I[self.scan_line_d, :]
+        L_u = I[self.scan_line_u, :]
+        L_d = I[self.scan_line_d, :]
 
         # Smooth the transitions so we can detect the peaks 
-        Lf = filtfilt(self.butter_b, self.butter_a, L)
+        Lf_u = filtfilt(self.butter_b, self.butter_a, L_u)
+        Lf_d = filtfilt(self.butter_b, self.butter_a, L_d)
 
         # Find peaks which are higher than 0.5
-        peaks_d, p_val1 = find_peaks(Lf, height=self.peak_thres_d)
-        
-        peaks_u, p_val2 = find_peaks(Lf, height=self.peak_thres_u)
+        peaks_u, p_val2 = find_peaks(Lf_u, height=self.peak_thres_u)
+        peaks_d, p_val1 = find_peaks(Lf_d, height=self.peak_thres_d)
         
         rospy.loginfo(peaks_d)
 
@@ -104,12 +105,14 @@ class PosEstimator():
         # Peaks on the left
         if peaks_left_u.size:
             line_left_u = peaks_left_u.max()
+
         if peaks_left_d.size:
             line_left_d = peaks_left_d.max()
 
         # Peaks on the right
         if peaks_right_u.size:
             line_right_u = peaks_right_u.min()
+
         if peaks_right_d.size:
             line_right_d = peaks_right_d.min()
         
