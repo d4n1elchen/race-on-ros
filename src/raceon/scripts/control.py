@@ -24,10 +24,11 @@ def decreaseCurve(x):
 class Controller():
     
     def __init__(self):
-        self.topic_name_pos_err = rospy.get_param("topic_name_position_error", "position/error")
+        self.topic_name_pos = rospy.get_param("topic_name_position_pose", "position/pose")
         self.topic_name_pos_state = rospy.get_param("topic_name_position_state", "position/state")
         self.topic_name_manual_mode = rospy.get_param("topic_name_manual_mode", "control/manual_mode")
         self.topic_name_control = rospy.get_param("topic_name_control", "control")
+        self.topic_name_manual_mode = rospy.get_param("topic_name_manual_mode", "control/manual_mode")
         
         # Parameters for control
         self.motor_speed = rospy.get_param("~motor_speed", 200)
@@ -54,7 +55,7 @@ class Controller():
         self.decrease_max = self.motor_speed - self.steering_speed
     
     def start(self):
-        self.sub_pos_err   = rospy.Subscriber(self.topic_name_pos_err, Pose, self.pos_err_callback)
+        self.sub_pos       = rospy.Subscriber(self.topic_name_pos, Pose, self.pos_callback)
         self.sub_pos_state = rospy.Subscriber(self.topic_name_pos_state, EstState, self.pos_state_callback)
         self.sub_manual_mode = rospy.Subscriber(self.topic_name_manual_mode, Bool, self.manual_mode_callback)
         self.pub_control = rospy.Publisher(self.topic_name_control, AckermannDrive, queue_size=10)
@@ -68,15 +69,15 @@ class Controller():
             control_msg.steering_angle = 0
             self.pub_control.publish(control_msg)
 
-    def pos_err_callback(self, pos_err_msg):
+    def pos_callback(self, pos_msg):
         if self.manual_mode:
             rospy.loginfo("Mannual mode is on. Not running control")
         else:
-            pos_err = pos_err_msg.position.x
+            pos = pos_msg.position.x
             
-            rospy.loginfo("Current error: pos_err = " + str(pos_err))
+            rospy.loginfo("Current position: pos = " + str(pos))
             
-            self.control_servo(pos_err)
+            self.control_servo(pos)
             self.control_speed()
             
             rospy.loginfo("Control command: servo_pos = " + str(self.servo_pos) + ", motor_speed = " + str(self.speed_val))
@@ -90,11 +91,11 @@ class Controller():
         self.state_u = pos_state_msg.upper
         self.state_d = pos_state_msg.down
     
-    def decrease_speed_pos_err(self, pos_err):
+    def decrease_speed_pos(self, pos):
         if self.state == 0: # Two line
             return self.motor_speed
         elif self.state > 0: # One line
-            return self.motor_speed - self.decrease_max * decreaseCurve(pos_err / (self.track_width/2))
+            return self.motor_speed - self.decrease_max * decreaseCurve(pos / (self.track_width/2))
     
     def decrease_speed_servo(self, servo_pos):
         if self.state == 0: # Two line

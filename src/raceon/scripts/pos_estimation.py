@@ -16,7 +16,7 @@ class PosEstimator():
     
     def __init__(self):
         self.topic_name_camera_image = rospy.get_param("topic_name_camera_image", "camera/image")
-        self.topic_name_pos_err = rospy.get_param("topic_name_position_error", "position/error")
+        self.topic_name_pos_pose = rospy.get_param("topic_name_position_pose", "position/pose")
         self.topic_name_pos_track = rospy.get_param("topic_name_position_track", "position/track")
         self.topic_name_pos_state = rospy.get_param("topic_name_position_state", "position/state")
         self.frame_name = rospy.get_param("frame_name", "camera")
@@ -42,7 +42,7 @@ class PosEstimator():
     def start(self):
         self.sub_camera = rospy.Subscriber(self.topic_name_camera_image, Image, self.image_callback)
             
-        self.pub_pos_err = rospy.Publisher(self.topic_name_pos_err, Pose, queue_size=10)
+        self.pub_pos_pose = rospy.Publisher(self.topic_name_pos_pose, Pose, queue_size=10)
         self.pub_pos_track = rospy.Publisher(self.topic_name_pos_track, TrackPosition, queue_size=10)
         self.pub_pos_state = rospy.Publisher(self.topic_name_pos_state, EstState, queue_size=10)
         rospy.spin()
@@ -60,13 +60,13 @@ class PosEstimator():
     def process_image(self, img):
         rospy.loginfo("Image with shape {:s} received. (max, min)=({:d}, {:d})".format(str(img.shape), img.min(), img.max()))
         line_pos, state_u, state_d = self.pos_estimate(img)
-        pos_err = self.camera_center - line_pos
+        pos_err = line_pos - self.camera_center
         
-        rospy.loginfo("Estimated line_pos = {:d}, state_u = {:d}, state_d = {:d}".format(line_pos, state_u, state_d))
+        rospy.loginfo("Estimated line_pos = {:d} (Car pos = {:d}), state_u = {:d}, state_d = {:d}".format(pos_err, -pos_err, state_u, state_d))
         
         pos_msg = Pose()
-        pos_msg.position.x = pos_err
-        self.pub_pos_err.publish(pos_msg)
+        pos_msg.position.x = -pos_err
+        self.pub_pos_pose.publish(pos_msg)
         
         state_msg = EstState()
         state_msg.upper = state_u
