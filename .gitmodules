@@ -1,0 +1,3 @@
+[submodule "src/raceon"]
+	path = src/raceon
+	url = https://github.com/d4n1elchen/raceon-ros.git
